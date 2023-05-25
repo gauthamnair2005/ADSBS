@@ -27,28 +27,19 @@
      Other sources of information are the context help in the menu interface,
   and the xDonutOS books themselves.
 
-2. PREREQUISITES::
-
-     As said elsewhere, it is strongly advised that you first build manually
-  a complete system before attempting to automate the build.
-
-     Of course the "Host System Requirements" should be fulfilled. The needed
-  supplementary packages are detailed at the bottom of the page:
-  http://www.linuxfromscratch.org/adsbs/download.html
-
-3. INSTALLATION::
+2. INSTALLATION::
 
      No installation is required. You may want to move the files in this
   directory to a convenient location, and then follow the instructions below.
 
-4. CONFIGURATION::
+3. CONFIGURATION::
 
-  4.1. CONFIGURATION OF THE TOOLS:
+  3.1. CONFIGURATION OF THE TOOLS:
        There is no configuration of the tools themselves. The various
     parameters for the build are set through a menu driven interface. See
     the section RUNNING below for details.
 
-  4.2. PRELIMINARY TASKS:
+  3.2. PRELIMINARY TASKS:
        This tool has no support at all for creating a partition and a mount
     point for the built system. You should follow the book up to the section
     "Mounting the new partition". Note that the default name for the
@@ -93,7 +84,7 @@
     ./custom/examples. A template is provided as ./custom/template. See
     README.CUSTOM for more details.
 
-5. RUNNING::
+4. RUNNING::
 
   IMPORTANT::
       You must be logged as a normal user with sudo privileges to run
@@ -161,7 +152,7 @@
       If you run the adsbs script directly the only function you can select
       is to display the version number by running <./adsbs -v>
 
-6. LAYOUT::
+5. LAYOUT::
 
         /EDS (see README.EDS)
 
@@ -222,7 +213,7 @@
         adsbs
         eds-tool
 
-7. FAQ::
+6. FAQ::
     Q. "It doesn't work"
     A. There are several reasons why it may be so. One possibility is the
        following: adsbs was designed to work against the development versions
@@ -317,5 +308,5 @@
 
        See the Makefile to know the proper target names for that book build.
 
-Authors:
+Author:
   Gautham Nair
