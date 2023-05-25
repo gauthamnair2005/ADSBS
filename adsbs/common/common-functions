@@ -1,0 +1,98 @@
+#!/bin/bash
+
+
+set -e
+
+
+no_empty_builddir() {
+  'clear'
+cat <<- -EOF-
+${DD_BORDER}
+
+${tab_}${tab_}${BOLD}${RED}W A R N I N G${OFF}
+    Looks like the \$BUILDDIR directory contains subdirectories
+    from a previous build.
+
+    Please format the partition mounted on \$BUILDDIR or set
+    a different build directory before running adsbs.
+${OFF}
+${DD_BORDER}
+-EOF-
+  exit
+}
+
+
+#----------------------------#
+run_make() {                 #
+#----------------------------#
+  # Test if make must be run.
+  if [ "$RUNMAKE" = "y" ] ; then
+    # Test to make sure we're not running the build as root
+    if [ "$UID" = "0" ] ; then
+      echo "You must not be logged in as root to build the system."
+      exit 1
+    fi
+    # Build the system
+    if [ -e "$MKFILE" ] ; then
+      echo -ne "Building the system...\n"
+      cd "$adsbsDIR" && make
+      echo -ne "done\n"
+    fi
+  fi
+}
+
+
+#----------------------------#
+clean_builddir() {           #
+#----------------------------#
+# Test if the clean must be done.
+if [ "${CLEAN}" = "y" ]; then
+  # If empty (i.e. could contain lost+found), do not do anything
+  if ls -d $BUILDDIR/* > /dev/null 2>&1 &&
+       [ "$(ls $BUILDDIR)" != "lost+found" ]; then
+    # Test to make sure that the build directory was populated by adsbs
+    if [ ! -d $adsbsDIR ] || [ ! -d $BUILDDIR/sources ] ; then
+      echo "Looks like $BUILDDIR was not populated by a previous adsbs run."
+      exit 1
+    # Test that dev filesystems are not mounted in $BUILDDIR
+    elif mount | grep $BUILDDIR/dev > /dev/null ; then
+      echo "Looks like kernel filesystems are still mounted on $BUILDDIR."
+      exit 1
+    else
+      if [ $adsbsDIR/*gcc-pass1 != $adsbsDIR/'*gcc-pass1' ]; then
+        echo -n "$BUILDDIR contains already built packages. Clean anyway? yes/no (yes): "
+        read ANSWER
+        if [ x${ANSWER:0:1} = "xn" -o x${ANSWER:0:1} = "xN" ] ; then
+          echo "${nl_}Rerun and change the option in the menu.${nl_}"
+          exit 1
+        fi
+      fi
+      # Clean the build directory
+      echo -n "Cleaning $BUILDDIR ..."
+      # First delete proc and sys directories, if they exist.
+      # Both should be empty. If not, we exit, and the rmdir command
+      # has generated an error message
+      if [ -d $BUILDDIR/proc ] ; then
+        sudo rmdir $BUILDDIR/proc || exit 1
+      fi
+      if [ -d $BUILDDIR/sys ] ; then
+        sudo rmdir $BUILDDIR/sys || exit 1
+      fi
+      sudo rm -rf $BUILDDIR/{bin,boot,dev,etc,home,lib{,64},media,mnt,run}
+      sudo rm -rf $BUILDDIR/{opt,root,sbin,srv,tmp,tools,cross-tools,usr,var}
+      echo "done"
+      if [[ "${Bds_TOOL}" = "y" ]] ; then
+        echo -n "Cleaning $BUILDDIR/$Bds_ROOT ..."
+        sudo rm -rf $BUILDDIR/$Bds_ROOT
+        echo "done"
+      fi
+      echo -n "Cleaning $adsbsDIR ..."
+      sudo rm -rf $adsbsDIR
+      echo "done"
+      echo -n "Cleaning remaining extracted sources in $BUILDDIR/sources ..."
+      sudo rm -rf `find $BUILDDIR/sources -maxdepth 1 -mindepth 1 -type d`
+      echo "done"
+    fi
+  fi
+fi
+}

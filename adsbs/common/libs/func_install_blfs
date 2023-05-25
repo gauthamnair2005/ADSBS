@@ -1,0 +1,243 @@
+#!/bin/bash
+
+
+#----------------------------# Prepare Bds_ROOT and extract
+install_bds_tools() {       # the scriptlets to build
+#----------------------------# the dependency tools
+set -e
+# Install the files
+[[ ! -d ${BUILDDIR}${Bds_ROOT} ]] && {
+    sudo mkdir -pv ${BUILDDIR}${Bds_ROOT}
+    sudo chown $USER:$USER ${BUILDDIR}${Bds_ROOT}
+}
+cp -r Bds/* ${BUILDDIR}${Bds_ROOT}
+cp -r menu ${BUILDDIR}${Bds_ROOT}
+cp $COMMON_DIR/progress_bar.sh ${BUILDDIR}${Bds_ROOT}
+cp README.Bds ${BUILDDIR}${Bds_ROOT}
+if [ "$WRAP_INSTALL" = y ]; then
+  sed -e 's/PKGDIR/JH_UNPACKDIR/' \
+      -e 's/PKG_DEST/JH_PKG_DIR/' \
+      $PKGMNGTDIR/packInstall.sh > ${BUILDDIR}${Bds_ROOT}/packInstall.sh
+fi
+
+# Set some harcoded envars to their proper values
+sed -i s@tracking-dir@$TRACKING_DIR@ \
+    ${BUILDDIR}${Bds_ROOT}/{Makefile,gen-makefile.sh}
+sed -i s@trunk/BOOK@$Bds_TREE@ \
+    ${BUILDDIR}${Bds_ROOT}/Makefile
+
+# If we have a working copy, copy it:
+if [[ "$Bds_WORKING_COPY" = "y" ]]; then
+echo "copying the local Bds working copy (may take some time)"
+# -r: recursive; -u: only if newer; -T: otherwise, would copy to a subdirectory
+# of bds-xml, if bds-xml already exists; --preserve=timestamps: if the local
+# book has already been validated, tmp is posterior to the others, and
+# validation will not be done again.
+  cp -ruT --preserve=timestamps $Bds_WC_LOCATION \
+                                ${BUILDDIR}${Bds_ROOT}/$Bds_XML
+fi
+
+# Copy the ds book. Note that now, the book is downloaded before running
+# the Bds tools.
+cp -ruT --preserve=timestamps $BOOK \
+                              ${BUILDDIR}${Bds_ROOT}/$ds_XML
+
+# Downloads the book if necessary, initialize the tracking file and the
+# package database.
+# sudo is needed if $BUILDDIR/var/lib is owned by root and /var/lib/adsbs
+# has to be created
+sudo make -j1 -C $BUILDDIR$Bds_ROOT             \
+          REV=$INITSYS                           \
+          TRACKING_DIR=$BUILDDIR$TRACKING_DIR    \
+          ds_XML=$BUILDDIR$Bds_ROOT/$ds_XML   \
+          ds-SVN=$SVN_2/ds/$TREE               \
+          Bds_XML=$BUILDDIR$Bds_ROOT/$Bds_XML \
+          SVN=$SVN_2/Bds/$Bds_TREE             \
+          $BUILDDIR$Bds_ROOT/packages.xml
+
+# Because the Bds Makefile is supposed to be used in chroot (or booted)
+# mode, the tracking file has wrong path for DTD. Change it:
+sudo sed -i s@$BUILDDIR@@ $BUILDDIR$TRACKING_DIR/instpkg.xml
+
+# Manually build a 'configuration' file
+if [ "$DEP_LIBXML" = y ]; then
+  LINE_LIBXML='CONFIG_libxml2=y'
+else
+  LINE_LIBXML='#CONFIG_libxml2 is not set'
+fi
+if [ "$DEP_LIBXSLT" = y ]; then
+  LINE_LIBXSLT='CONFIG_libxslt=y'
+else
+  LINE_LIBXSLT='#CONFIG_libxslt is not set'
+fi
+# DocBook is a rec dep of libxslt
+# if [ "$DEP_DBXML" = y ]; then
+#   LINE_DBXML='CONFIG_DocBook=y'
+# else
+#   LINE_DBXML='#CONFIG_DocBook is not set'
+# fi
+if [ "$DEP_LYNX" = y ]; then
+  LINE_LYNX='CONFIG_lynx=y'
+else
+  LINE_LYNX='#CONFIG_lynx is not set'
+fi
+if [ "$DEP_SUDO" = y ]; then
+  LINE_SUDO='CONFIG_sudo=y'
+else
+  LINE_SUDO='#CONFIG_sudo is not set'
+fi
+if [ "$DEP_WGET" = y ]; then
+  LINE_WGET='CONFIG_wget=y'
+else
+  LINE_WGET='#CONFIG_wget is not set'
+fi
+if [ "$DEP_GPM" = y ]; then
+  LINE_GPM='CONFIG_gpm=y'
+else
+  LINE_GPM='#CONFIG_gpm is not set'
+fi
+if [ "$DEP_SVN" = y ]; then
+  LINE_SVN='CONFIG_subversion=y'
+else
+  LINE_SVN='#CONFIG_subversion is not set'
+fi
+
+cat >$BUILDDIR$Bds_ROOT/configuration <<EOF
+$LINE_LIBXML
+$LINE_LIBXSLT
+$LINE_WGET
+$LINE_SVN
+$LINE_GPM
+$LINE_LYNX
+$LINE_SUDO
+MAIL_SERVER=sendmail
+optDependency=2
+SUDO=n
+LANGUAGE=$LANG
+WRAP_INSTALL=$WRAP_INSTALL
+DEL_LA_FILES=$DEL_LA_FILES
+STATS=n
+EOF
+
+# Generates the scripts for the bds tools dependencies (in ./scripts)
+yes "yes" | $BUILDDIR$Bds_ROOT/gen_pkg_book.sh  $BUILDDIR$Bds_ROOT
+
+# Move the scriptlets where they should be
+sudo rm -rf $BUILDDIR$Bds_ROOT/scripts
+mv scripts $BUILDDIR$Bds_ROOT
+
+# Generates a list containing download and copying instructions for tarballs
+echo -e '#!/bin/bash\nset -e\n' > $BUILDDIR$Bds_ROOT/download_script
+sed -n -e '/PACKAGE=/,/^fi/{/^fi/a\
+cp $PACKAGE $JH_SRC_ARCHIVE
+p}' \
+       -e '/|[ ]*md5sum/p' \
+       -e '/PACKAGE1=/,/^fi/{/^fi/a\
+cp $PACKAGE1 $JH_SRC_ARCHIVE
+p}' \
+       -e '/PATCH=/,/^fi/{/^fi/a\
+cp $PATCH $JH_SRC_ARCHIVE
+p}' \
+       -e '/URL=/,/^fi/{/^fi/a\
+cp $BOOTPACKG $JH_SRC_ARCHIVE
+p}' \
+    $BUILDDIR$Bds_ROOT/scripts/* >> $BUILDDIR$Bds_ROOT/download_script
+chmod u+x $BUILDDIR$Bds_ROOT/download_script
+
+# Downloads (or copy) to build_dir/sources
+pushd $BUILDDIR/sources
+# Remove `unpacked' files if some have been left
+sudo find . -name unpacked -exec rm \{\} \;
+if [ "$GETPKG" = "y" ]; then
+    JH_FTP_SERVER=$SERVER/pub/bds/ \
+    JH_SRC_ARCHIVE=${SRC_ARCHIVE:-/dev/null}     \
+    $BUILDDIR$Bds_ROOT/download_script
+else # Save the download script in case the user wants to run it later
+    cp $BUILDDIR$Bds_ROOT/download_script .
+fi
+popd
+rm -v $BUILDDIR$Bds_ROOT/download_script
+
+# Suppresses unneeded parts of the scriptlets
+if [ "$DEP_LIBXSLT" = y ]; then
+  # libxslt pulls docbook-xsl in, which populates the catalog with annoying
+  # **EDITME** references. Fortunately, those lines are regognizable because
+  # they occur between lines containing '/etc/xml/catalog' at the end of the
+  # line (without '&&'). I  have not found a simple way to delete lines
+  # between 2 addresses, excluding either the first or the last one. So use
+  # a loop for accumulating lines and deleting at the end.
+  # Sorry for sed syntax.
+  sed -i '\@^[[:space:]]*/etc/xml/catalog$@{
+n
+:a
+\@/etc/xml/catalog$@bb
+N
+ba
+:b
+d}' \
+      $BUILDDIR$Bds_ROOT/scripts/*docbook-xsl
+fi
+if [ "$DEP_SUDO" = y ]; then
+  sed -i '/cat.*pam.d/i mkdir -p /etc/pam.d' $BUILDDIR$Bds_ROOT/scripts/*sudo
+fi
+if [ "$DEP_SVN" = y ]; then
+  sed -i -e /javahl/d -e /swig/d $BUILDDIR$Bds_ROOT/scripts/*subversion
+fi
+# At last generates the build Makefile
+mkdir -p $BUILDDIR$Bds_ROOT/work
+pushd $BUILDDIR$Bds_ROOT/work
+../gen-makefile.sh
+# The generated Makefile updates the tracking file after each package
+# installation, using libxslt, which is not installed yet. So move
+# updating to the end of the process, adding an 'update' target
+sed -i -e '/xsltproc/,+6d' \
+       -e '/^all/s@$@ update@' \
+       -e 's/touch/@touch/' Makefile
+cat >> Makefile << EOF
+update:
+	@echo Updating the tracking file
+	@for pack in \$\$(grep '<productname' ../$ds_XML/tmp/ds-full.xml | \\
+		sed 's/.*>\([^<]*\)<.*/\1/' | \\
+		sort | uniq); do \\
+	    if [ "x\$\$pack" = xtcl -o \\
+	         "x\$\$pack" = xexpect -o \\
+	         "x\$\$pack" = xdejagnu ]; then continue; \\
+	    fi; \\
+	    VERSION=\$\$(grep -A1 ">\$\$pack</product" \\
+			../$ds_XML/tmp/ds-full.xml | \\
+		head -n2|  \\
+		sed -n '2s/.*>\([^<]*\)<.*/\1/p');  \\
+	    xsltproc --stringparam packages ../packages.xml \\
+		--stringparam package \$\$pack \\
+		--stringparam version \$\$VERSION \\
+		-o track.tmp \\
+		../xsl/bump.xsl \$(TRACKING_FILE); \\
+	    sed -i 's@PACKDESC@$Bds_ROOT/packdesc.dtd@' track.tmp; \\
+	    xmllint --format --postvalid track.tmp > \$(TRACKING_FILE); \\
+	    rm track.tmp; \\
+	done; \\
+	VERSION=\$\$(grep 'echo.*ds-release' ../$ds_XML/tmp/ds-full.xml | \\
+	             sed 's/.*echo[ ]*\([^ ]*\).*/\1/'); \\
+	xsltproc --stringparam packages ../packages.xml \\
+	    --stringparam package ds-Release \\
+	    --stringparam version \$\$VERSION \\
+	    -o track.tmp \\
+	    ../xsl/bump.xsl \$(TRACKING_FILE); \\
+	sed -i 's@PACKDESC@$Bds_ROOT/packdesc.dtd@' track.tmp; \\
+	xmllint --format --postvalid track.tmp > \$(TRACKING_FILE); \\
+	rm track.tmp; \\
+	for file in *-*; do \\
+	    xsltproc --stringparam packages ../packages.xml \\
+		--stringparam package \$\${file##*z-} \\
+		-o track.tmp \\
+		../xsl/bump.xsl \$(TRACKING_FILE); \\
+	    sed -i 's@PACKDESC@$Bds_ROOT/packdesc.dtd@' track.tmp; \\
+	    xmllint --format --postvalid track.tmp > \$(TRACKING_FILE); \\
+	    rm track.tmp; \\
+	done
+	@touch \$@
+	@echo -e "\n\n "\$(BOLD)Target \$(BLUE)\$@ \$(BOLD)OK
+	@echo --------------------------------------------------------------------------------\$(WHITE)
+EOF
+popd
+}

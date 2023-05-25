@@ -1,0 +1,25 @@
+            adsbs TODO
+          ---------------
+
+MASTER SCRIPT
+-------------
+
+  - [CDS] Add a switch to choose between static or DHCP network configuration
+    for CDS.
+
+
+xDS MODULES
+------------
+
+  - [CDS] Add a switch to choose between static or DHCP network configuration
+    for CDS.
+
+
+EDS MODULE (See EDS/TODO)
+-----------
+
+
+OTHERS
+------
+
+  - Bugs hunting and code clean-up.

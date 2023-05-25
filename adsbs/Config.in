@@ -1,0 +1,1243 @@
+menu "BOOK Settings"
+
+    #--- BOOK/script
+    choice
+        prompt "Use BOOK"
+        default BOOK_DS
+        help
+            Select the book where build instructions are retrieved.
+
+        config    BOOK_DS
+            bool "DonutOS System V"
+            help
+                Set up the tools to build DS with Sys V init.
+
+        config    BOOK_DS_SYSD
+            bool "DonutOS systemd"
+            help
+                Set up the tools to build DS with systemd init.
+
+        config    BOOK_CDS
+            bool "Cross-Compiled DonutOS"
+            help
+                Set up the tools to build CDS.
+
+        config    BOOK_CDS2
+            bool "Cross-Compiled DonutOS (Sysroot method)"
+            help
+                Set up the tools to build CDS by the sysroot method.
+
+        config    BOOK_CDS3
+            bool "Cross-Compiled DonutOS (Embedded Systems)"
+            help
+                Set up the tools to build CDS with tools for embedded systems.
+
+        config    BOOK_EDS
+            bool "Enhanced DonutOS(see help)"
+            help
+                if the (C)DS system has already been built, install the tools
+                to build EDS packages.
+    endchoice
+
+    choice
+    depends on BOOK_EDS
+    prompt "Init system"
+
+        config EDS_SYSV
+        bool "EDS Sys V"
+        help
+            Extract the Sys V flavour of the EDS book
+
+        config EDS_SYSD
+        bool "EDS systemd"
+        help
+            Extract the systemd flavour of the EDS book
+
+    endchoice
+
+    config    INITSYS
+        string
+        default "sysv"         if BOOK_DS || EDS_SYSV
+        default "systemd"      if BOOK_DS_SYSD || EDS_SYSD
+
+    config    PROGNAME
+        string
+        default "ds"          if BOOK_DS || BOOK_DS_SYSD
+        default "cds"         if BOOK_CDS
+        default "cds2"        if BOOK_CDS2
+        default "cds3"        if BOOK_CDS3
+
+    config    RUN_ME
+        string
+        default "./jhads run" if BOOK_DS || BOOK_DS_SYSD || BOOK_CDS || \
+                                  BOOK_CDS2 || BOOK_CDS_3
+        default "./install-bds-tools.sh auto" if BOOK_EDS
+    #--- End BOOK/script
+
+    #--- Book version
+    choice
+        prompt   "Release"
+        default   relSVN    if BOOK_DS || BOOK_DS_SYSD || BOOK_EDS
+        default   relGIT    if BOOK_CDS || BOOK_CDS2 || BOOK_CDS3
+
+        config    relSVN
+            bool    "SVN"
+            depends on BOOK_DS || BOOK_EDS || BOOK_DS_SYSD
+            help
+                Current development version as in trunk
+
+        config    relGIT
+            bool    "GIT"
+            depends on BOOK_CDS || BOOK_CDS2 || BOOK_CDS3
+            help
+                Current development git master branch
+
+        config    WORKING_COPY
+            bool    "Working Copy"
+            help
+                A local working copy
+
+        config    BRANCH
+            bool    "Branch or stable book" if !BOOK_CDS2 && !BOOK_CDS3
+            help
+                A supported SVN/GIT branch or stable released book
+    endchoice
+
+    config    BRANCH_ID
+        string    "Branch (preceded by \"branch-\"), stable Version, or tag"
+        default    "**EDIT ME**"
+        depends on    BRANCH
+        help
+            A list of valid branches and stable book IDs is available at
+            http://wiki.linuxfromscratch.org/ads/wiki/SupportedBooks
+            
+            Enter "branch-XXX" for branch XXX, or just "YYY" for stable (or tag)
+            YYY version.
+
+    config    BOOK
+        string    "Loc of working copy (mandatory)"
+        default    "**EDIT ME**"
+        depends on    WORKING_COPY
+        help
+            The full path to a local copy of the book XML sources
+
+    #--- End BOOK version
+
+    #--- CDS specific params
+    choice
+        prompt    "Target architecture"
+        default    ARCH_X86
+        depends on    BOOK_CDS || BOOK_CDS2 || BOOK_CDS3
+        help
+            Choose the target system base architecture
+
+        config    ARCH_X86
+            bool    "x86"
+
+        config    ARCH_MIPS
+            bool    "mips"    if !BOOK_CDS2
+
+        config    ARCH_PPC
+            bool    "ppc"    if BOOK_CDS
+
+        config    ARCH_SPARC
+            bool    "sparc"    if BOOK_CDS
+
+        config    ARCH_ALPHA
+            bool    "alpha"    if !BOOK_CDS3
+
+        config    ARCH_ARM
+            bool    "arm"    if !BOOK_CDS
+
+        config    ARCH_HPPA
+            bool    "hppa"    if BOOK_CDS2
+    endchoice
+
+    choice
+        prompt    "Hardware Platform"
+        depends on    BOOK_CDS3 && ARCH_MIPS
+        default    PLATFORM_GENERIC
+        help
+            Choose a destination platform
+            Platform specific files will be included
+
+        config    PLATFORM_GENERIC
+            bool    "Generic platform"
+
+        config    PLATFORM_WRT
+            bool    "WRT - MIPS based wireless router" if ARCH_MIPS
+    endchoice
+
+    choice
+        prompt    "Library"
+        depends on    (BOOK_CDS && !ARCH_ALPHA) || (BOOK_CDS3 && ARCH_MIPS)
+        default    DATA_32
+        help
+            Choose the target system libraries type
+
+        config    DATA_32
+            bool    "32-bit"
+
+        config    DATA_64
+            bool    "64-bit"
+
+        config    DATA_MULTI
+            bool    "multilib"    if !(BOOK_CDS3 && ARCH_MIPS )
+    endchoice
+
+    choice
+        prompt    "Processor type"
+        depends on    (BOOK_CDS || BOOK_CDS2 || BOOK_CDS3) && ((ARCH_X86 && !(DATA_64 || DATA_MULTI)) || ARCH_MIPS || ARCH_HPPA || ARCH_ALPHA || (ARCH_SPARC && (DATA_64 || DATA_MULTI)) || (ARCH_ARM && BOOK_CDS3))
+        help
+            Choose the target system processor
+
+        config    PROC_i486
+            bool    "486 Compatibles"                    if ARCH_X86
+
+        config    PROC_i586
+            bool    "Pentium, K6, 586 Compatibles"                if ARCH_X86
+
+        config    PROC_i686
+            bool    "Pentium II, Pentium III, Pentium 4, Athlon, Duron"    if ARCH_X86
+
+        config    PROC_mipsel
+            bool    "MIPS Little Endian"                    if ARCH_MIPS
+
+        config    PROC_mips
+            bool    "MIPS Big Endian"                    if ARCH_MIPS
+
+        config    PROC_unknown
+            bool    "Unknown"                        if ARCH_HPPA || ARCH_ALPHA
+
+        config    PROC_hppa1
+            bool    "PA 7000 Series"                    if ARCH_HPPA
+
+        config    PROC_hppa2
+            bool    "PA 8000 Series"                    if ARCH_HPPA
+
+        config    PROC_EV5
+            bool    "EV5 Series"                        if ARCH_ALPHA
+
+        config    PROC_EV56
+            bool    "EV56 Series"                        if ARCH_ALPHA
+
+        config    PROC_PCA56
+            bool    "PCA56 Series"                        if ARCH_ALPHA
+
+        config    PROC_PCA57
+            bool    "PCA57 Series"                        if ARCH_ALPHA
+
+        config    PROC_EV6
+            bool    "EV6 Series"                        if ARCH_ALPHA
+
+        config    PROC_EV67
+            bool    "EV67 Series"                        if ARCH_ALPHA
+
+        config    PROC_EV68
+            bool    "EV68 Series"                        if ARCH_ALPHA
+
+        config    PROC_ARM
+            bool    "Generic arm, little endian"                if ARCH_ARM
+
+        config    PROC_ARM5L
+            bool    "Generic arm, version 5, little endian"            if ARCH_ARM
+
+        config    PROC_ARM5B
+            bool    "Generic arm, version 5, big endian"            if ARCH_ARM
+
+        config    PROC_ULTRA1
+            bool    "UtraSparc"                        if ARCH_SPARC && (DATA_64 || DATA_MULTI)
+
+        config    PROC_ULTRA2
+            bool    "UtraSparc2"                        if ARCH_SPARC && (DATA_64 || DATA_MULTI)
+
+        config    PROC_ULTRA3
+            bool    "UtraSparc3"                        if ARCH_SPARC && (DATA_64 || DATA_MULTI)
+    endchoice
+
+    choice
+        prompt    "MIPS 64 ABI"
+        depends on    BOOK_CDS3 && ARCH_MIPS && DATA_64
+        default    ABI_64
+        help
+            Choose the target system ABI to use
+
+        config    ABI_32
+            bool    "o32"
+
+        config    ABI_N32
+            bool    "n32"
+
+        config    ABI_64
+            bool    "n64"
+    endchoice
+
+    config TARGET
+        string
+        default "i486-pc-linux-gnu"        if !BOOK_CDS3 && PROC_i486
+        default "i586-pc-linux-gnu"        if !BOOK_CDS3 && PROC_i586
+        default "i686-pc-linux-gnu"        if !BOOK_CDS3 && PROC_i686
+
+        default "i486-pc-linux-uclibc"     if  BOOK_CDS3 && PROC_i486
+        default "i586-pc-linux-uclibc"     if  BOOK_CDS3 && PROC_i586
+        default "i686-pc-linux-uclibc"     if  BOOK_CDS3 && PROC_i686
+
+        default "x86_64-unknown-linux-gnu" if  ARCH_X86   && (DATA_64 || DATA_MULTI)
+
+        default "mipsel-unknown-linux-gnu" if !BOOK_CDS3 && PROC_mipsel && DATA_32
+        default "mips-unknown-linux-gnu"   if !BOOK_CDS3 && PROC_mips   && DATA_32
+        default "mips64el-unknown-linux-gnu" if !BOOK_CDS3 && PROC_mipsel && (DATA_64 || DATA_MULTI)
+        default "mips64-unknown-linux-gnu" if !BOOK_CDS3 && PROC_mips   && (DATA_64 || DATA_MULTI)
+
+        default "mipsel-unknown-linux-uclibc" if  BOOK_CDS3 && PROC_mipsel && DATA_32
+        default "mips-unknown-linux-uclibc" if  BOOK_CDS3 && PROC_mips   && DATA_32
+        default "mips64el-unknown-linux-uclibc" if  BOOK_CDS3 && PROC_mipsel && DATA_64
+        default "mips64-unknown-linux-uclibc" if  BOOK_CDS3 && PROC_mips   && DATA_64
+
+        default "powerpc-unknown-linux-gnu" if  ARCH_PPC && DATA_32
+        default "powerpc64-unknown-linux-gnu" if  ARCH_PPC && (DATA_MULTI || DATA_64)
+
+        default "sparc-unknown-linux-gnu"   if  ARCH_SPARC && DATA_32
+        default "sparc64-unknown-linux-gnu" if  ARCH_SPARC && (DATA_64 || DATA_MULTI)
+
+        default "hppa-unknown-linux-gnu"    if  PROC_unknown && ARCH_HPPA
+        default "hppa1.1-unknown-linux-gnu" if  PROC_hppa1
+        default "hppa2.0-unknown-linux-gnu" if  PROC_hppa2
+
+        default "arm-unknown-linux-gnueabi" if  ARCH_ARM && BOOK_CDS2
+
+        default "arm-unknown-linux-uclibc"  if  PROC_ARM
+        default "armv5l-unknown-linux-uclibc" if  PROC_ARM5L
+        default "armv5b-unknown-linux-uclibc" if  PROC_ARM5B
+
+        default "alpha-unknown-linux-gnu"   if  PROC_unknown && ARCH_ALPHA
+        default "alphaev5-unknown-linux-gnu" if  PROC_EV5
+        default "alphaev56-unknown-linux-gnu" if  PROC_EV56
+        default "alphapca56-unknown-linux-gnu" if  PROC_PCA56
+        default "alphapca57-unknown-linux-gnu" if  PROC_PCA57
+        default "alphaev6-unknown-linux-gnu" if  PROC_EV6
+        default "alphaev67-unknown-linux-gnu" if  PROC_EV67
+        default "alphaev68-unknown-linux-gnu" if  PROC_EV68
+
+    config TARGET32
+        string
+        depends on    DATA_MULTI
+        default "i686-pc-linux-gnu"        if ARCH_X86
+        default "mipsel-unknown-linux-gnu" if PROC_mipsel
+        default "mips-unknown-linux-gnu"   if PROC_mips
+        default "sparc-unknown-linux-gnu"  if ARCH_SPARC
+        default "powerpc-unknown-linux-gnu" if ARCH_PPC
+
+    config  PLATFORM
+        string
+        default "GENERIC"               if (!BOOK_CDS3) || PLATFORM_GENERIC
+        default "WRT - Wireless Router" if PLATFORM_WRT
+
+    config  SPARC64_PROC
+        string
+        default "none"                if !(ARCH_SPARC && (DATA_64 || DATA_MULTI))
+        default    "1"                if PROC_ULTRA1
+        default    "2"                if PROC_ULTRA2
+        default    "3"                if PROC_ULTRA3
+
+    config    ARCH
+        string
+        default   "x86"        if ARCH_X86   && (DATA_32 || BOOK_CDS2 || BOOK_CDS3)
+        default   "x86_64"     if ARCH_X86   && DATA_MULTI
+        default   "x86_64-64"  if ARCH_X86   && DATA_64
+
+        default   "wrt"        if PLATFORM_WRT && BOOK_CDS3
+
+        default   "mips"       if ARCH_MIPS  && (DATA_32 || BOOK_CDS3)
+        default   "mips64"     if ARCH_MIPS  && DATA_MULTI
+        default   "mips64-64"  if ARCH_MIPS  && DATA_64 && BOOK_CDS
+
+
+        default   "ppc"        if ARCH_PPC   && DATA_32
+        default   "ppc64"      if ARCH_PPC   && DATA_MULTI
+        default   "ppc64-64"   if ARCH_PPC   && DATA_64
+
+        default   "sparc"      if ARCH_SPARC && DATA_32
+        default   "sparc64"    if ARCH_SPARC && DATA_MULTI
+        default   "sparc64-64" if ARCH_SPARC && DATA_64
+
+        default   "alpha"      if ARCH_ALPHA
+        default   "arm"        if ARCH_ARM
+        default   "hppa"       if ARCH_HPPA
+
+    config  MIPS_LEVEL
+        string
+        depends on BOOK_CDS3 && ARCH_MIPS
+        default "1"        if DATA_32
+        default "3"        if DATA_64
+
+    config    ABI
+        string
+        depends on BOOK_CDS3
+        default "-m32"      if ARCH_X86 || ARCH_ARM
+#        default "-m64"     if NO USED YET IN THE BOOK
+        default "-mabi=32"  if ABI_32 || (ARCH_MIPS && DATA_32)
+        default "-mabi=n32" if ABI_N32
+        default "-mabi=64"  if ABI_64
+
+    config    ENDIAN
+        string
+        depends on BOOK_CDS3 && (ARCH_MIPS || ARCH_ARM)
+        default "little"    if PROC_mipsel || PROC_ARM || PROC_ARM5L
+        default "big"       if PROC_mips || PROC_ARM5B
+
+    choice
+        prompt    "Build method"
+        depends on    BOOK_CDS
+        help
+            What build method should be used: a chroot jail or minimal boot
+            system. Review the Cross-DS book chap6 "TO BOOT OR CHROOT" for
+            a full explanation.
+
+        config    BUILD_CHROOT
+            bool    "chroot"
+
+        config    BUILD_BOOT
+            bool    "boot"
+    endchoice
+
+    config    METHOD
+        string
+        default "chroot"    if BUILD_CHROOT
+        default "boot"      if BUILD_BOOT
+
+    config    BOOT_CONFIG
+        string  "BOOT kernel config file (mandatory)"
+        default "***EDIT ME***"
+        depends on BUILD_BOOT
+        help
+            If METHOD=boot, location of boot-kernel config file
+            The config file will be copied to ${BUILD_DIR}/sources
+            and renamed 'bootkernel-config'
+            NOTE: this setting is required
+    #--- End CDS specific params
+
+    #--- bds-tool Support
+    config EDS_TOOL
+        bool    "Add bds-tool support"
+        default    n
+        depends on !BOOK_CDS3 && !BOOK_EDS
+        help
+            Activating this option will install additional packages needed
+            to use bds tools after booting the new system.
+            The bds-tool files will be installed under $BUILD_DIR/bds_root
+            (see below).
+            After booting the new xDS system, but before using the bds tools,
+            you should create a user account, move the /bds_root directory
+            to that user's home, and change its ownership to that of the user.
+            Also, be sure to give the user read and write access on the
+            $TRACKING_DIR directory and the files that it contains.
+            Don't forget to configure sudo properly on the new system.
+
+    config DUMMY # Avoid indenting the items below
+    bool
+
+    if EDS_TOOL
+        menu "bds-tool dependencies"
+
+            config    DEP_LIBXML
+            bool    "libxml2 (required)"
+            default    y
+
+            config    DEP_LIBXSLT
+            bool    "libxslt (required)"
+            default    y
+
+            config    DEP_DBXML
+            bool    "DocBook XML DTD (required)"
+            default    y
+
+            config    DEP_LYNX
+            bool    "lynx (optional, for reading the generated book)"
+            default    y
+
+            config    DEP_SUDO
+            bool    "sudo (recommended)"
+            default    y
+
+            config    DEP_WGET
+            bool    "wget (recommended)"
+            default    y
+
+            config    DEP_GPM
+            bool    "GPM (optional, see help)"
+            default    n
+            help
+                if you install gpm, it will be started
+                automatically on boot. It allows copy-paste
+                while Xorg is not installed.
+
+            config    DEP_SVN
+            bool    "SVN client (optional, see help)"
+            default    n
+            help
+                Subversion is needed for updating the book
+                sources. You do not need it if building a
+                stable book.
+
+        endmenu
+
+        choice
+        prompt    "EDS Release"
+        default    EDS_SVN
+
+            config    EDS_SVN
+            bool    "EDS SVN"
+            help
+                Current development version as in trunk
+
+            config    EDS_WORKING_COPY
+            bool    "EDS working copy"
+            help
+                A local working copy of the EDS book.
+
+            config    EDS_BRANCH
+            bool    "EDS Branch or stable book"
+            help
+                A supported SVN branch or stable book release
+        endchoice
+
+        config    EDS_WC_LOCATION
+        string    "Location of the local EDS working copy (mandatory)"
+        default    "**EDIT ME**"
+        depends on EDS_WORKING_COPY
+        help
+            Full path to the EDS book working copy
+
+        config    EDS_BRANCH_ID
+        string    "EDS Book Version (mandatory)"
+        default    "**EDIT ME**"
+        depends on EDS_BRANCH
+        help
+            A list of valid branches and stable book IDs is available at
+            http://wiki.linuxfromscratch.org/ads/wiki/SupportedBooks.
+    endif
+    #--- End bds-tool Support
+
+    #--- EDS params (Used for installing the tools, either after a jhads run
+    #    or directly)
+        config    EDS_ROOT
+        string "Root of the tools directory (see help)"
+        default "/bds_root"
+        depends on EDS_TOOL || BOOK_EDS
+        help
+            Path to the directory where all required files and scripts
+            will be stored.
+            
+            This path must begin with a slash, and:
+            - is relative to the user's HOME directory when installing the
+              bds tools on an already existing DS system.
+            - is relative to the root of the build directory (`/' in chroot)
+              when adding the tools after a jhads run
+            
+            CAUTION: this directory will be removed if it already exists.
+
+        config    EDS_XML
+        string "EDS sources directory (internal parameter)"
+        default "bds-xml"
+        depends on EDS_TOOL || BOOK_EDS
+        help
+            The directory name under $EDS_ROOT where the EDS
+            book sources will be copied or checked out. Do not change that
+            unless you know what you are doing...
+
+        config    DS_XML
+        string "DS sources directory (internal parameter)"
+        default "ds-xml"
+        depends on EDS_TOOL || BOOK_EDS
+        help
+            The directory name under $EDS_ROOT where the DS
+            book sources will be copied or checked out. Do not change that
+            unless you know what you are doing...
+
+        choice
+        prompt    "DS Release"
+        default    DS_relSVN
+        depends on    BOOK_EDS
+
+            config    DS_relSVN
+            bool     "DS SVN"
+            help
+                Current development version as in trunk
+
+            config    DS_WORKING_COPY
+            bool     "DS working copy"
+            help
+                A local working copy of the DS book.
+
+            config    DS_BRANCH
+            bool     "DS Branch or stable book"
+            help
+                A supported SVN branch or stable book release
+        endchoice
+
+        config    EDS_DS_BOOK
+        string    "Location of the local DS working copy (mandatory)"
+        default    "**EDIT ME**"
+        depends on DS_WORKING_COPY
+        help
+            Full path to the DS book working copy"
+
+        config    EDS_DS_BRANCH_ID
+        string    "DS Book Version (mandatory)"
+        default    "**EDIT ME**"
+        depends on DS_BRANCH
+        help
+            A list of valid branches and stable book IDs is available at
+            http://wiki.linuxfromscratch.org/ads/wiki/SupportedBooks.
+    # End of EDS parameters
+
+    #--- Custom Tools support
+    config CUSTOM_TOOLS
+        depends on !BOOK_EDS
+        bool    "Add custom tools support"
+        default    n
+        help
+            Activating this option additional packages you create
+            will be installed after finished the xDS system build.
+    #--- End Custom Tools support
+
+    #--- This direcotry is needed for bds tools installation and custom tools
+    #    As well.
+    config    TRACKING_DIR
+        string "Installed packages database directory"
+        default "/var/lib/jhads/EDS"
+        depends on BOOK_EDS || EDS_TOOL || CUSTOM_TOOLS
+        help
+            Full path to the directory where the database of
+            installed packages will be created.
+            
+            If the bds tools are installed on a running xDS system,
+            the user must have enough privileges to create this directory.
+            It may be necessary to create the /var/lib/jhads directory as
+            root, and make it writable by the user before running this tool.
+            
+            If you are installing the bds tools as part of an xDS build
+            and/or using the customized scripts feature, you will
+            need to fix this directory's permissions after booting
+            the new system.
+            
+            Note that the user that will build the packages must
+            have read and write access to this directory.
+
+#--- End BOOK Settings
+endmenu
+
+menu "General Settings"
+depends on !BOOK_EDS
+
+    #--- {C,H,}DS User Account
+
+    config    LUSER
+        string
+        default    "ds"    if BOOK_DS || BOOK_DS_SYSD
+        default    "cds"    if BOOK_CDS || BOOK_CDS2 || BOOK_CDS3
+        default "hds"    if BOOK_HDS
+
+    config    LGROUP
+        string
+        default    LUSER
+
+    config    LHOME
+        string
+        default    "/home"
+
+    #--- End Set User Account
+
+    config BUILDDIR
+        string "Build Directory"
+        default "/mnt/build_dir"
+        help
+            #-- The directory where the created system will be located.
+            #   NOTE: A working directory named jhads will be created
+            #   here, so ensure this does not conflict with the jhads
+            #   source directory.
+
+    config    GETPKG
+        bool "Retrieve source files"
+        default n
+        help
+            #-- Download all packages and patches required by the selected book
+            #   NOTE: Looks for files in the local archive defined by SRC_ARCHIVE
+            #   first and if necessary retrieves them from the 'net.
+            #   Files will be transferred to $BUILDDIR/sources.
+
+    config SRC_ARCHIVE
+        string "Package Archive Directory"
+        default "$SRC_ARCHIVE"
+        depends on GETPKG
+        help
+            #-- A local archive for packages/files (not $BUILDDIR/sources)
+            #   Any missing file will be downloaded and archived here,
+            #   if the user has the right privileges.
+
+    config RETRYSRCDOWNLOAD
+        bool "Retry on 'connection refused' failure"
+        default n
+        depends on GETPKG
+        help
+            #-- Attempt to download a source package again if it fails
+            #   with a 'connection refused' error. This can happen on
+            #   servers that are overloaded.
+
+    config RETRYDOWNLOADCNT
+        int "Number of retry attempts on download failures"
+        default 20
+        depends on GETPKG
+        help
+            #-- Number of times to retry a failed download.
+
+    config DOWNLOADTIMEOUT
+        int "Download timeout (in seconds)"
+        default 30
+        depends on GETPKG
+        help
+            #-- Number of seconds to wait for a download to start before
+            #   timing out.
+
+    config SERVER
+        string "FTP mirror"
+        default "http://ftp.osuosl.org"
+        depends on GETPKG
+        help
+            #-- FTP mirror to download packages and patches if not found
+            #   in $SRC_ARCHIVE
+            #   As a last resort, the files will downloaded from upstream,
+            #   if possible.
+
+    config    RUNMAKE
+        bool    "Run the makefile"
+        default n
+        help
+            #-- Automatically run the makefile once it has been created
+
+    config    CLEAN
+        bool    "Rebuild files"
+        default    n
+        help
+            #-- Clean the build directory before performing any other task.
+            #   The directory is cleaned only if it was populated by a
+            #   previous JHADS run.
+
+#--- End General Settings
+endmenu
+
+menu "Build Settings"
+depends on !BOOK_EDS
+
+    #--- Test Suites
+    config    CONFIG_TESTS
+        bool    "Run testsuites"
+        depends on    !BOOK_CDS2 && !BOOK_CDS3
+        default    y
+        help
+            #-- Run test suites
+            #  If you select 'y' here:
+            #  You will have to select between:
+            #  - Only critical final system testsuites
+            #  - All final system testsuites
+            #  - Both temporary tools and final system testsuites
+            #  You will be prompted also about the "flavour" of the
+            #  testsuites run:
+            #  - Don't stop on test suite failures
+            #  - Abort the build at the first test suite failure
+            #
+            #  Note that in any case, all the test instructions will
+            #  be generated. Those which are not wanted will be commented
+            #  out. If you select 'n' here, the commented test instructions
+            #  do not stop on test suite failures.
+            #
+            #  HDS and CDS have no testsuites available in the
+            #  temporary tools phase
+
+    menu "Test settings"
+    depends on    CONFIG_TESTS
+    choice
+        prompt    "Tests level"
+        default    TST_1
+
+        config  TST_1
+            bool    "Only final system critical testsuites"
+            help
+                #-- Critical tests:
+                # Only Glibc, Binutils, GMP, MPFR, MPC and GCC
+                # testsuites for final system. The others are commented
+                # out.
+
+        config    TST_2
+            bool    "All final system testsuites"
+            help
+                #-- All final system test suites:
+                # Test instructions for the temporary tools (if available)
+                # are commented out.
+
+        config    TST_3
+            bool    "All testsuites" if !BOOK_HDS && !BOOK_CDS
+            help
+                #-- All tests:
+                # Runs all the testsuites for both temporary tools (if
+                # available) and final system
+    endchoice
+
+    choice
+        prompt    "Flavour"
+
+        config    NO_BOMB
+            bool    "Don't stop on test failures"
+
+        config    BOMB
+            bool    "Abort the build on the first test failure"
+    endchoice
+
+    config    TEST
+        int
+        default    "0"    if !CONFIG_TESTS
+        default    "1"    if TST_1
+        default    "2"    if TST_2
+        default    "3"    if TST_3
+
+    config    BOMB_TEST
+        bool
+        default    n if NO_BOMB
+        default    y if BOMB
+
+    #--- End Test Suites
+    endmenu # test settings
+
+    #--- Package Management
+    config  PKGMNGT
+        bool    "Package management"
+        depends on BOOK_DS || BOOK_DS_SYSD
+        default n
+        help
+            #-- Use package management
+            #
+            #  If set, you'll have to choose between
+            #  two package management styles:
+            #  - Build and install:
+            #    the packages in the final phase are built
+            #    in a separate directory, PKG_DEST.
+            #    You should provide a bash function for
+            #    packaging and installing the package.
+            #  - Preload a library before install:
+            #    Run the install instructions inside a
+            #    wrapper command, which monitors the
+            #    installed files.
+            #
+            #  Also, you have to provide the instructions
+            #  to build the package manager during the
+            #  temporary tools phase, in the form of a
+            #  sect1 of the book identical to a package
+            #  sect1. See README.PACKAGE_MANAGEMENT
+            #
+            #  For now, this only works with DS
+    choice
+        depends on PKGMNGT
+        prompt "Package management style"
+        default PKG_PACK
+
+        config PKG_PACK
+            bool "Build and pack (pacman or dpkg style)"
+
+        config LIB_LOAD
+            bool "Preload a library before installing (porg style)"
+    endchoice
+
+    config WRAP_INSTALL
+        bool
+        default y if LIB_LOAD
+        default n if PKG_PACK
+    #--- End package management
+
+    #--- Installed files logs
+    config    INSTALL_LOG
+        bool    "Create a log of installed files for each package"
+        default    n
+        help
+            #-- Select this if you want to create logs of the files
+            #   installed by each package on the final system.
+
+    #--- End Installed files logs
+
+    config    STRIP
+        bool "Strip Installed Binaries/Libraries"
+        default n
+        depends on !BOOK_CDS3
+
+    config    DEL_LA_FILES
+        bool "Remove libtool .la files"
+        default y
+        help
+            #-- Remove files libxxx.la installed by libtool. For a rationale
+            #   see https://blog.flameeyes.eu/tags/lafiles/
+
+    config    NO_PROGRESS_BAR
+        bool "DO NOT use/display progress_bar"
+        default n
+        help
+            #-- Do not use the progress bar routine. On slower machines
+            #   this function consumes precious CPU cycles.
+
+#--- End Build Settings
+endmenu
+
+menu "System configuration"
+    depends on !BOOK_EDS
+
+    #--- FSTAB
+    config    HAVE_FSTAB
+        bool    "Use a custom fstab file"
+        default    n
+        help
+            #-- Select this if you have an fstab file with entries
+            #   for the target system
+
+    config    FSTAB
+        string    "Fstab file (optional)"
+        default    "***EDIT ME***"
+        depends on HAVE_FSTAB
+        help
+            #-- The location of fstab file (if empty, a template is created)
+    #--- End FSTAB
+
+    #--- Kernel
+    config    CONFIG_BUILD_KERNEL
+        bool    "Build the kernel"
+        default    n
+        help
+            #-- Select this option if you wish to build the kernel.
+            #
+            #   You will be prompted for the full path to the .config
+            #   file. It will be copied to the 'sources' directory and
+            #   renamed kernel-config
+
+    config    CONFIG
+        string    "Kernel config file"
+        default    "***EDIT ME***"
+        depends on CONFIG_BUILD_KERNEL
+        help
+            #-- Fully qualified path to a kernel config file
+            #   The config file will be copied to ${BUILD_DIR}/sources
+            #   and renamed 'kernel-config'
+    #--- End Kernel
+
+    config    VIMLANG
+        bool "Install vim-lang package"
+        default n
+        depends on !BOOK_HDS && !BOOK_CDS3
+        help
+            #-- Install the optional vim-lang package
+            #   NOTE: This option is obsolete with the 7.3 release of Vim
+            #   which is included in all recent releases of DS.
+
+    config    TIMEZONE
+        string "TimeZone"
+        default "GMT"
+        help
+            #-- The timezone as output by tzselect
+            #   This will be copied to /etc/localtime
+
+    config    LANG
+        string "Language"
+        default "$LANG"
+        help
+            #-- LANG variable set in /etc/profile
+            #   See http://sourceware.org/git/?p=glibc.git;a=blob;f=localedata/SUPPORTED
+            #   for values (or the file localedata/SUPPORTED in glibc tarball)
+
+    config  FULL_LOCALE
+        bool "Install the full set of locales"
+        default n
+        help
+            #-- If set to y, the full set of supported locales
+            #   will be installed. Otherwise, only the minimal set
+            #   necessary for the tests will be installed,
+            #   together with the locale associated with the
+            #   LANG you have chosen, if not in the minimal set.
+
+    #--- Groff page
+    choice
+        prompt    "Groff page size"
+        default    PAGE_LETTER
+        help
+            #-- Page definition for groff: letter or A4
+
+        config    PAGE_LETTER
+            bool    "letter"
+
+        config    PAGE_A4
+            bool    "A4"
+    endchoice
+
+    config    PAGE
+        string
+        default    "letter"    if PAGE_LETTER
+        default    "A4"        if PAGE_A4
+    #--- End Groff page
+
+    config    HOSTNAME
+        string "Hostname (see help)"
+        default "**EDITME**"
+        help
+          If you are on a public network, use the hostname given to you by
+          your institution, or corporation, etc. If your network is private,
+          that is, behind a firewall such as a box to connect to your ISP,
+          you can choose anything you'd like. Combined with the domain name
+          "local", you have the possibility to access your computer by name
+          instead of address on the private network (see RFC 6762 and
+          https://www.howtogeek.com/167190/).
+
+       menu "Network configuration"
+        config INTERFACE
+            string "netword card name"
+            default "eth0"
+            help
+              eth0 is used in most cases. Virtual insterfaces may get other
+              names (for example enp0s3 for the default network stack in qemu).
+              Systemd may also rename network interfaces according to their
+              bus addresses.
+        config IP_ADDR
+            string "Static IP address"
+            default "10.0.2.9"
+            help
+              The default here is for a virtual interface in qemu. Private
+              networks have addresses in the range 10.x.x.x or 192.169.x.x.
+              You have to know your network prefix. Then the last figure
+              may be anything you like.
+
+        config GATEWAY
+            string "Gateway"
+            default "10.0.2.2"
+            help
+              Again, this default is for a qemu network stack. Usually, the
+              gateway is the address of your firewall.
+        config PREFIX
+            string "Subnet prefix"
+            default "24"
+            help
+              Again, this default is for a qemu network stack, but is also
+              the most used in private networks.
+        config BROADCAST
+            string "Broadcast address"
+            default "10.0.2.255"
+        config DOMAIN
+            string "Domain name (see help)"
+            default "local"
+            help
+               Domain Name:
+               Doamin names are registered, so if your computer is on a public
+               network, you cannot use any name you'd like. On a public
+               network, you should have been given a domain name by
+               your corporation, institution, etc.
+               If your network is really private, that is behind a firewall
+               such as a box for connecting to an ISP, you can choose any
+               domain you'd like. You can also opt for "local", see RFC 6762,
+               or "something.test", see RFC 6761.
+        config DNS1
+            string "Primary Name server"
+            default "10.0.2.3"
+        config DNS2
+            string "Secondary Name server"
+            default "8.8.8.8"
+    endmenu # Network configuration
+
+    menu "Console configuration"
+        config FONT
+            string "Console font"
+            default "lat0-16"
+            help
+                Unicode mode is set by default. Setting FONT_MAP, FONT_UNIMAP,
+                etc, must be done manually.
+        config KEYMAP
+            string "Keymap name"
+            default "us"
+        config LOCAL
+            boolean "Hardware clock is set to local time"
+            default n
+            help
+                If the harware clock is set to local time, answer yes,
+                If it is set to UTC, answer no
+        config LOG_LEVEL
+            string "Default log level (1-8)"
+            default "4"
+            depends on BOOK_DS
+            help
+                This can be changed using dmesg. 1 means "no message",
+                8 shows every message sent by the kernel, which is very
+                noisy. The default at boot time is 7, which is quite
+                noisy too.
+    endmenu # Console configuration
+
+endmenu        #--- System configuration
+
+menu "Advanced Features"
+depends on !BOOK_EDS
+
+    config    REPORT
+        bool "Create SBU and disk usage report"
+        default y
+
+    #--- ICA
+    config    COMPARE
+        bool "Run comparison analysis on final stage"
+        depends on    !BOOK_CDS2 && !BOOK_CDS3
+        default n
+        help
+            #-- Should an iterative comparison analysis be performed?
+            #
+            #   Unless you are familiar with ICA, do not
+            #   select this option
+            #
+            #  ICA is an analysis tool for comparing one
+            #  build to the next. Builds mays differ from one iteration
+            #  to another due to the build order and this tool try
+            #  to ferret out those differences by examining the stored
+            #  build logs and binary files.
+            #
+            #  The scripts are well commented and can be found in ./extras/*
+            #
+
+    config    ITERATIONS
+        int    "Number of test runs (2,3,4,5)"    if COMPARE
+        depends on COMPARE
+        range    2 5
+        default    3
+
+    config    RUN_ICA
+        bool
+        default y if COMPARE
+
+    #--- End ICA
+
+    #--- Optimizations
+if !BOOK_CDS2 && !BOOK_CDS3
+    config    CONFIG_OPTIMIZE
+        bool    "Optimization and parallelization"
+        default    n
+        help
+            #   Opens a menu for various optimization settings:
+            #   Actual optimization flags MUST be defined in ./optimize/*
+            #   before activating this option.
+            #
+            # WARNING: The use of build optimizations may lead to build issues.
+            #   If the system doesn't work as expected, please rebuild
+            #   without optimizations before asking for support.
+    menu    "Optimization settings"
+        depends on CONFIG_OPTIMIZE
+
+    config    N_PARALLEL
+        int "Number of parallel `make' jobs"
+        default 1
+        help
+            #-- The usual recommandation is (number of CPU cores)+1
+            #   Do not set for meaningful SBU calculations.
+
+    choice
+        prompt "Optimization level"
+        default OPT_1
+        help
+            #-- Optimization values are set in optimize/* files
+
+        config    OPT_1
+            bool    "Final system only"
+
+        config    OPT_2
+            bool    "Both temp tools and final system"
+
+        config    OPT_3
+            bool    "Cross tools (only MAKEFLAGS), temp tools and final system" if BOOK_CDS
+    endchoice
+
+    config    REALSBU
+        bool    "Build Binutls pass1 without optimization (Real SBU)"
+        depends on (BOOK_DS || BOOK_DS_SYSD) && OPT_2
+        default    n
+        help
+           #-- Use -j1 in make invokation for Binutils pass1 to
+           #   get a valid SBU value.
+
+endmenu
+    config    OPTIMIZE
+        int
+        default    "0"    if !CONFIG_OPTIMIZE
+        default    "1"    if OPT_1
+        default    "2"    if OPT_2
+        default    "3"    if OPT_3
+endif
+
+    #--- End Optimizations
+
+    #-- Internal Settings
+    menu "Internal Settings (WARNING: for jhads developers only)"
+
+        config    SCRIPT_ROOT
+            string    "Scripts root"
+            default "jhads"
+
+        config    JHADSDIR
+            string "jhads directory"
+            default "$BUILDDIR/$SCRIPT_ROOT"
+
+        config    LOGDIRBASE
+            string "Build logs directory basename"
+            default "logs"
+
+        config    LOGDIR
+            string "Build logs directory"
+            default "$JHADSDIR/$LOGDIRBASE"
+
+        config    TESTLOGDIRBASE
+            string "Test suites logs directory basename"
+            default "test-logs"
+
+        config    TESTLOGDIR
+            string "Test suites logs directory"
+            default "$JHADSDIR/$TESTLOGDIRBASE"
+
+        config    FILELOGDIRBASE
+            string "Installed files logs directory basename"
+            default "installed-files"
+
+        config    FILELOGDIR
+            string "Installed files logs directory"
+            default "$JHADSDIR/$FILELOGDIRBASE"
+
+        config    ICALOGDIR
+            string "ICA logs directory"
+            default "$LOGDIR/ICA"
+
+        config    MKFILE
+            string "Makefile"
+            default "$JHADSDIR/Makefile"
+
+        config    XSL
+            string "XSL stylesheet"
+            default "$PROGNAME.xsl"
+
+        config    PKG_LST
+            string "Package contents list"
+            default "unpacked"
+
+    #--- End Internal Settings
+    endmenu
+
+#--- End Advanced Features
+endmenu
+
+config REBUILD_MAKEFILE
+    depends on !BOOK_EDS
+    bool "Rebuild the Makefile (see help)"
+    default n
+    help
+        #-- Rebuild the Makefile
+        #
+        #   This option allows to rebuild the Makefile after
+        #   customizing the base system build scripts.
+        #
+        #   See README.CUSTOM for more info about this feature.
+
